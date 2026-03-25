@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';">
+    <title>Mi Markdown Editor</title>
+
+    <link rel="stylesheet" href="./node_modules/simplemde/dist/simplemde.min.css">
+    <script src="./node_modules/simplemde/dist/simplemde.min.js"></script>
+
+    <style>
+        html, body {
+            height: 100%;
+            display: flex;
+            flex: 1; 
+            flex-direction: column;
+            margin: 0;
+        }
+        .CodeMirror {
+            flex: 1;
+        }
+    </style>
+</head>
+<body ondrop="dropHandler(event);" ondragover="event.preventDefault();">
+    <textarea id="editor"></textarea>
+
+    <script>
+        var editor = new SimpleMDE({
+            element: document.getElementById('editor')
+        });
+
+        const { ipcRenderer } = require('electron');
+
+        function dropHandler(event) {
+            event.preventDefault();
+            
+            if (event.dataTransfer.items && event.dataTransfer.items[0].kind === 'file') {
+                var file = event.dataTransfer.items[0].getAsFile();
+
+                if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
+                    var reader = new FileReader();
+                    
+                    reader.onload = e => {
+                        editor.codemirror.setValue(e.target.result);
+                    };
+                    
+                    reader.readAsText(file);
+                }
+            }
+        }
+
+        ipcRenderer.on('editor-event', (event, arg) => {
+            console.log(arg);
+
+            event.sender.send('editor-reply', `Received ${arg}`);
+
+            if (arg === 'toggle-bold') {
+                editor.toggleBold();
+            }
+
+            if (arg === 'save') {
+                event.sender.send('save', editor.value());
+            }
+        });
+
+        ipcRenderer.on('load', (event, content) => {
+            if (content) {
+                editor.value(content);
+            }
+        });
+
+        ipcRenderer.send('editor-reply', 'Page Loaded');
+    </script>
+</body>
+</html>
